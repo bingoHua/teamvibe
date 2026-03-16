@@ -1,0 +1,31 @@
+{
+  "id": "2026-03-16T1435_amybriggs5010_729487",
+  "version": "1.0",
+  "timestamp": "2026-03-16T14:35:00+08:00",
+  "author": {
+    "name": "amybriggs5010",
+    "role": ""
+  },
+  "is_major_change": false,
+  "supersedes": "2026-03-16T1430_jiangyanping_08b8f5",
+  "entries": [
+    {
+      "decision_key": "block-rounded-corners",
+      "status": "active",
+      "requirement": {
+        "what": "将俄罗斯方块的方块改为直角并添加白色描边",
+        "why": "团队沟通后达成一致，改用直角方块配合白色描边的视觉风格"
+      },
+      "solution": {
+        "approach": "将 drawCell 中的 roundRect 替换为 fillRect/rect 实现直角，并在绘制完成后用 strokeRect 添加白色描边（rgba(255,255,255,0.6)）",
+        "not_included": "未修改方块颜色、尺寸或游戏逻辑"
+      },
+      "decision": {
+        "type": "human",
+        "motivation": "用户明确要求将方块改为直角并添加白色描边，已与原决策作者蒋延平沟通确认，团队达成一致",
+        "decided_by": "amybriggs5010"
+      }
+    }
+  ],
+  "noise_excluded": "无"
+}
