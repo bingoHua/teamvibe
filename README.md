@@ -196,6 +196,26 @@ your-project/
 └── tetris.html                       # Demo: Tetris H5 game
 ```
 
+## The Untapped Power of Hooks
+
+TeamVibe is built entirely on the **hooks systems** of AI coding IDEs — a powerful capability that most developers haven't fully explored yet.
+
+Both [Cursor Hooks](https://cursor.com/docs/hooks) and [Claude Code Hooks](https://code.claude.com/docs/en/hooks) allow you to run custom scripts at key moments in the AI agent's lifecycle: before a command executes, after a file is edited, when a session starts, before context compaction, and more. They can observe, intercept, or modify the AI's behavior — deterministically, not by hoping the LLM remembers your instructions.
+
+**Most people use hooks for simple tasks** — auto-formatting code, running linters, or blocking dangerous commands. But hooks can do far more:
+
+- **Inject shared context** across team members' AI sessions (TeamVibe: `session-init`)
+- **Gate workflows** with structured checkpoints (TeamVibe: `pre-commit-decision`)
+- **Bridge information gaps** between collaborators (TeamVibe: `post-pull-review`)
+- **Protect against context loss** during long sessions (TeamVibe: `pre-compact-reminder`)
+- **Enforce team policies** without relying on LLM compliance (TeamVibe: `pre-push-validate`)
+
+TeamVibe is one example of what's possible. The hooks API is an **underutilized extension point** — essentially a programmable middleware layer between humans and AI agents. We believe more creative applications will emerge as teams discover this capability.
+
+> **Further reading:**  
+> - [Cursor Hooks Documentation](https://cursor.com/docs/hooks)  
+> - [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks)
+
 ## Why Not Just Use...
 
 | Tool | Why it doesn't work |
@@ -412,6 +432,26 @@ your-project/
 │   └── drafts/                       # 会话草稿（gitignored）
 └── tetris.html                       # 演示：俄罗斯方块 H5 游戏
 ```
+
+## Hooks 的潜力远未被挖掘
+
+TeamVibe 完全构建在 AI 编程 IDE 的 **Hooks 系统**之上 —— 一个大多数开发者还没有充分探索的强大能力。
+
+[Cursor Hooks](https://cursor.com/docs/hooks) 和 [Claude Code Hooks](https://code.claude.com/docs/en/hooks) 都允许你在 AI Agent 生命周期的关键节点运行自定义脚本：命令执行前、文件编辑后、会话启动时、上下文压缩前……它们可以观察、拦截或修改 AI 的行为 —— 是确定性的，不依赖于 LLM "记住"你的指令。
+
+**大多数人只用 hooks 做简单的事** —— 自动格式化代码、运行 linter、拦截危险命令。但 hooks 能做的远不止这些：
+
+- **跨成员注入共享上下文**，让每个人的 AI 从第一句话就了解团队决策（TeamVibe: `session-init`）
+- **用结构化检查点把控工作流**，在提交时自动生成决策记录（TeamVibe: `pre-commit-decision`）
+- **弥合协作者之间的信息差**，拉取代码后自动通报变更（TeamVibe: `post-pull-review`）
+- **防止长会话中的上下文丢失**，在压缩前提醒保存决策草稿（TeamVibe: `pre-compact-reminder`）
+- **强制执行团队策略**，不依赖 LLM 的"自觉"而是确定性拦截（TeamVibe: `pre-push-validate`）
+
+TeamVibe 只是 hooks 能力的一个应用示例。Hooks API 本质上是**人与 AI Agent 之间的可编程中间件层** —— 一个被严重低估的扩展点。我们相信随着更多团队发现这个能力，会涌现出更多创造性的应用。
+
+> **延伸阅读：**  
+> - [Cursor Hooks 官方文档](https://cursor.com/docs/hooks)  
+> - [Claude Code Hooks 官方指南](https://code.claude.com/docs/en/hooks)
 
 ## 为什么不用...
 
