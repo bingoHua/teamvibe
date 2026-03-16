@@ -1,0 +1,44 @@
+{
+  "status": "draft",
+  "session_id": "2026-03-16T_jiangyanping_drop3000",
+  "entries": [
+    {
+      "decision_key": "drop-speed-boost",
+      "status": "active",
+      "requirement": {
+        "what": "将方块默认下落速度改为 3000ms",
+        "why": "用户希望进一步放慢游戏节奏"
+      },
+      "solution": {
+        "approach": "初始下落间隔改为 3000ms，每级递减 240ms，最低 50ms 不变",
+        "not_included": "未修改软降、硬降等手动操作速度"
+      },
+      "decision": {
+        "type": "human",
+        "motivation": "用户明确要求将下落速度改为 3000ms，已与 amybriggs5010 线下沟通确认",
+        "decided_by": "蒋延平"
+      },
+      "supersedes": {
+        "record_id": "2026-03-16T1450_amybriggs5010_746279",
+        "reason": "经线下沟通确认，将下落速度从 2000ms 改为 3000ms"
+      }
+    },
+    {
+      "decision_key": "user-select-and-leaderboard",
+      "status": "active",
+      "requirement": {
+        "what": "在初始界面增加用户选择功能，并记录排行榜显示历史分数",
+        "why": "支持多人使用同一设备，追踪各玩家的游戏成绩"
+      },
+      "solution": {
+        "approach": "初始界面新增玩家选择下拉框和昵称输入框，使用 localStorage 持久化玩家列表和排行榜数据（最多50条），排行榜 TOP10 显示在开始界面和游戏结束界面，游戏结束后自动记录当前玩家分数",
+        "not_included": "未实现在线排行榜、玩家数据删除、头像等高级功能"
+      },
+      "decision": {
+        "type": "human",
+        "motivation": "用户明确要求添加用户选择和排行榜功能",
+        "decided_by": "蒋延平"
+      }
+    }
+  ]
+}

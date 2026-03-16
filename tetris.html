@@ -107,6 +107,132 @@
     margin-bottom: 20px;
   }
 
+  .user-select {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    width: 100%;
+    max-width: 220px;
+  }
+
+  .user-select label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  .user-select select,
+  .user-select input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .user-select select:focus,
+  .user-select input:focus {
+    border-color: rgba(80,120,255,0.6);
+  }
+
+  .user-select select option {
+    background: #1a1a2e;
+    color: #fff;
+  }
+
+  .user-input-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .user-input-row input { flex: 1; }
+
+  .btn-small {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .btn-small:hover { background: rgba(255,255,255,0.2); }
+
+  .leaderboard {
+    width: 100%;
+    max-width: 220px;
+    margin-bottom: 16px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .leaderboard::-webkit-scrollbar { width: 4px; }
+  .leaderboard::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .leaderboard h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .lb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .lb-row:nth-child(even) { background: rgba(255,255,255,0.03); }
+
+  .lb-rank {
+    width: 22px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .lb-rank.gold { color: #ffd700; }
+  .lb-rank.silver { color: #c0c0c0; }
+  .lb-rank.bronze { color: #cd7f32; }
+
+  .lb-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(255,255,255,0.75);
+  }
+
+  .lb-score {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #fff;
+    margin-left: 8px;
+  }
+
+  .lb-empty {
+    text-align: center;
+    color: rgba(255,255,255,0.25);
+    font-size: 13px;
+    padding: 12px 0;
+  }
+
   .btn {
     padding: 12px 32px;
     font-size: 15px;
@@ -194,6 +320,15 @@
       <div class="overlay visible" id="startOverlay">
         <h2>俄罗斯方块</h2>
         <p>经典街机游戏</p>
+        <div class="user-select">
+          <label>选择玩家</label>
+          <select id="userSelect"><option value="">-- 新玩家 --</option></select>
+          <div class="user-input-row">
+            <input type="text" id="userInput" placeholder="输入昵称" maxlength="12">
+            <button class="btn-small" id="addUserBtn">确认</button>
+          </div>
+        </div>
+        <div class="leaderboard" id="startLeaderboard"></div>
         <button class="btn" id="startBtn">开始游戏</button>
       </div>
       <div class="overlay" id="pauseOverlay">
@@ -203,6 +338,7 @@
       <div class="overlay" id="gameoverOverlay">
         <h2>游戏结束</h2>
         <p id="finalScore"></p>
+        <div class="leaderboard" id="overLeaderboard"></div>
         <button class="btn" id="restartBtn">再来一局</button>
       </div>
     </div>
@@ -228,6 +364,104 @@
 
 <script>
 (() => {
+  const STORAGE_KEY = 'tetris_leaderboard';
+  const USERS_KEY = 'tetris_users';
+  let currentUser = '';
+
+  function getUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+
+  function getLeaderboard() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveScore(name, score) {
+    const lb = getLeaderboard();
+    lb.push({ name, score, time: Date.now() });
+    lb.sort((a, b) => b.score - a.score);
+    if (lb.length > 50) lb.length = 50;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lb));
+  }
+
+  function renderLeaderboard(container) {
+    const lb = getLeaderboard();
+    if (lb.length === 0) {
+      container.innerHTML = '<h4>排行榜</h4><div class="lb-empty">暂无记录</div>';
+      return;
+    }
+    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const rows = lb.slice(0, 10).map((e, i) =>
+      `<div class="lb-row"><span class="lb-rank ${rankClass(i)}">${i + 1}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span></div>`
+    ).join('');
+    container.innerHTML = `<h4>排行榜 · TOP 10</h4>${rows}`;
+  }
+
+  function populateUserSelect() {
+    const sel = document.getElementById('userSelect');
+    const users = getUsers();
+    sel.innerHTML = '<option value="">-- 新玩家 --</option>';
+    users.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u;
+      opt.textContent = u;
+      sel.appendChild(opt);
+    });
+  }
+
+  function initUserUI() {
+    const sel = document.getElementById('userSelect');
+    const inp = document.getElementById('userInput');
+    const addBtn = document.getElementById('addUserBtn');
+
+    populateUserSelect();
+
+    sel.addEventListener('change', () => {
+      if (sel.value) {
+        currentUser = sel.value;
+        inp.value = sel.value;
+        inp.disabled = true;
+        addBtn.textContent = '切换';
+      } else {
+        currentUser = '';
+        inp.value = '';
+        inp.disabled = false;
+        addBtn.textContent = '确认';
+      }
+    });
+
+    addBtn.addEventListener('click', () => {
+      if (sel.value) {
+        sel.value = '';
+        inp.value = '';
+        inp.disabled = false;
+        currentUser = '';
+        addBtn.textContent = '确认';
+        return;
+      }
+      const name = inp.value.trim();
+      if (!name) return;
+      currentUser = name;
+      const users = getUsers();
+      if (!users.includes(name)) {
+        users.push(name);
+        saveUsers(users);
+        populateUserSelect();
+      }
+      sel.value = name;
+      inp.disabled = true;
+      addBtn.textContent = '切换';
+    });
+
+    renderLeaderboard(document.getElementById('startLeaderboard'));
+  }
+
   const COLS = 10, ROWS = 20, HIDDEN = 2;
   const TOTAL_ROWS = ROWS + HIDDEN;
   const CELL = Math.min(Math.floor((window.innerHeight - 160) / ROWS), 30);
@@ -365,7 +599,7 @@
     totalLines += count;
     score += LINE_SCORES[count] * level;
     level = Math.floor(totalLines / 10) + 1;
-    dropInterval = Math.max(50, 2000 - (level - 1) * 160);
+    dropInterval = Math.max(50, 3000 - (level - 1) * 240);
     scoreEl.textContent = score;
     levelEl.textContent = level;
     linesEl.textContent = totalLines;
@@ -383,7 +617,10 @@
   function endGame() {
     running = false;
     gameOver = true;
-    finalScoreEl.textContent = `最终得分：${score}`;
+    const playerName = currentUser || '匿名';
+    saveScore(playerName, score);
+    finalScoreEl.textContent = `${playerName} · 最终得分：${score}`;
+    renderLeaderboard(document.getElementById('overLeaderboard'));
     gameoverOverlay.classList.add('visible');
   }
 
@@ -549,7 +786,7 @@
     board = createBoard();
     bag = [];
     score = 0; level = 1; totalLines = 0;
-    dropInterval = 2000; dropTimer = 0;
+    dropInterval = 3000; dropTimer = 0;
     holdPiece = null; holdUsed = false;
     animatingLines = [];
     piece = null; nextPiece = null;
@@ -559,9 +796,22 @@
     holdCtx.clearRect(0, 0, 80, 80);
     spawnNext();
     running = true; paused = false; gameOver = false;
+    if (!currentUser) {
+      const inp = document.getElementById('userInput');
+      const name = inp.value.trim();
+      if (name) {
+        currentUser = name;
+        const users = getUsers();
+        if (!users.includes(name)) {
+          users.push(name);
+          saveUsers(users);
+        }
+      }
+    }
     startOverlay.classList.remove('visible');
     pauseOverlay.classList.remove('visible');
     gameoverOverlay.classList.remove('visible');
+    renderLeaderboard(document.getElementById('startLeaderboard'));
     lastTime = performance.now();
     requestAnimationFrame(loop);
   }
@@ -602,7 +852,12 @@
 
   document.getElementById('startBtn').addEventListener('click', startGame);
   document.getElementById('resumeBtn').addEventListener('click', togglePause);
-  document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    gameoverOverlay.classList.remove('visible');
+    renderLeaderboard(document.getElementById('startLeaderboard'));
+    populateUserSelect();
+    startOverlay.classList.add('visible');
+  });
 
   const tb = (id, fn) => {
     const el = document.getElementById(id);
@@ -626,6 +881,7 @@
     document.getElementById('touchControls').style.display = 'flex';
   }
 
+  initUserUI();
   draw();
 })();
 </script>
