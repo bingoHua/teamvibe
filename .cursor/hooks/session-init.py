@@ -83,21 +83,33 @@ def load_decisions(project_root):
 
 
 def get_active_decisions(records):
-    superseded_ids = set()
+    fully_superseded_records = set()
+    superseded_entries = set()
+
     for rec in records:
+        rec_sup = rec.get("supersedes")
+        if isinstance(rec_sup, str) and rec_sup:
+            fully_superseded_records.add(rec_sup)
+
         for entry in rec.get("entries", []):
             sup = entry.get("supersedes", {})
-            if sup.get("record_id"):
-                superseded_ids.add(sup["record_id"])
+            if isinstance(sup, dict) and sup.get("record_id"):
+                superseded_entries.add((sup["record_id"], entry.get("decision_key", "")))
 
     active = {}
     for rec in records:
-        if rec.get("id") in superseded_ids:
+        rec_id = rec.get("id", "")
+        if rec_id in fully_superseded_records:
             continue
         for entry in rec.get("entries", []):
             key = entry.get("decision_key", "")
-            if key and key not in active and entry.get("status") != "deprecated":
-                active[key] = {**entry, "_record": rec}
+            if not key or key in active:
+                continue
+            if entry.get("status") == "deprecated":
+                continue
+            if (rec_id, key) in superseded_entries:
+                continue
+            active[key] = {**entry, "_record": rec}
 
     return active
 
