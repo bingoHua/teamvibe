@@ -365,7 +365,7 @@
     totalLines += count;
     score += LINE_SCORES[count] * level;
     level = Math.floor(totalLines / 10) + 1;
-    dropInterval = Math.max(50, 500 - (level - 1) * 40);
+    dropInterval = Math.max(50, 2000 - (level - 1) * 160);
     scoreEl.textContent = score;
     levelEl.textContent = level;
     linesEl.textContent = totalLines;
@@ -549,7 +549,7 @@
     board = createBoard();
     bag = [];
     score = 0; level = 1; totalLines = 0;
-    dropInterval = 500; dropTimer = 0;
+    dropInterval = 2000; dropTimer = 0;
     holdPiece = null; holdUsed = false;
     animatingLines = [];
     piece = null; nextPiece = null;

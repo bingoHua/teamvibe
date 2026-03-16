@@ -1,0 +1,34 @@
+{
+  "id": "2026-03-16T1450_amybriggs5010_746279",
+  "version": "1.0",
+  "timestamp": "2026-03-16T14:50:00+08:00",
+  "author": {
+    "name": "amybriggs5010",
+    "role": ""
+  },
+  "is_major_change": false,
+  "entries": [
+    {
+      "decision_key": "drop-speed-boost",
+      "status": "active",
+      "requirement": {
+        "what": "将方块默认下落速度改为 2000ms",
+        "why": "用户希望放慢游戏节奏"
+      },
+      "solution": {
+        "approach": "初始下落间隔改为 2000ms，每级递减 160ms，最低 50ms 不变",
+        "not_included": "未修改软降、硬降等手动操作速度"
+      },
+      "decision": {
+        "type": "human",
+        "motivation": "用户明确要求将下落速度改为 2000ms，已与蒋延平线下沟通确认",
+        "decided_by": "amybriggs5010"
+      },
+      "supersedes": {
+        "record_id": "2026-03-16T1445_jiangyanping_4f83bb",
+        "reason": "经线下沟通确认，将下落速度从 500ms 改为 2000ms"
+      }
+    }
+  ],
+  "noise_excluded": "无"
+}
