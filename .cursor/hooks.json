@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "python3 .cursor/hooks/session-init.py",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "python3 .cursor/hooks/pre-commit-decision.py",
+        "matcher": "git commit",
+        "timeout": 30
+      },
+      {
+        "command": "python3 .cursor/hooks/pre-push-validate.py",
+        "matcher": "git push",
+        "timeout": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 .cursor/hooks/post-pull-review.py",
+        "matcher": "Shell",
+        "timeout": 15
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "python3 .cursor/hooks/pre-compact-reminder.py",
+        "timeout": 5
+      }
+    ]
+  }
+}
