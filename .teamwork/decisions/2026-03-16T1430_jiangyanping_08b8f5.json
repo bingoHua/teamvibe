@@ -1,0 +1,30 @@
+{
+  "id": "2026-03-16T1430_jiangyanping_08b8f5",
+  "version": "1.0",
+  "timestamp": "2026-03-16T14:30:00+08:00",
+  "author": {
+    "name": "蒋延平",
+    "role": ""
+  },
+  "is_major_change": false,
+  "entries": [
+    {
+      "decision_key": "block-rounded-corners",
+      "status": "active",
+      "requirement": {
+        "what": "将俄罗斯方块游戏中的所有方块改为圆角样式",
+        "why": "提升视觉美观度，让方块外观更现代柔和"
+      },
+      "solution": {
+        "approach": "使用 Canvas roundRect API 绘制圆角方块，圆角半径为格子尺寸的 22%，高光和阴影通过 clip 裁剪保持圆角一致",
+        "not_included": "未修改方块颜色、尺寸或游戏逻辑"
+      },
+      "decision": {
+        "type": "human",
+        "motivation": "用户明确要求将方块全部改为圆角",
+        "decided_by": "蒋延平"
+      }
+    }
+  ],
+  "noise_excluded": "无"
+}
