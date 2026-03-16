@@ -10,206 +10,210 @@
 
 ---
 
-## The Problem
+## The Problem — A Story You'll Recognize
 
-When multiple team members (PMs, designers, developers) use AI coding assistants (Cursor, Claude Code, etc.) on the same project, chaos emerges:
+Alice (PM) and Bob (developer) are building a product together. Both use AI coding assistants — Alice uses Cursor, Bob uses Claude Code.
 
-| # | Problem | Impact |
-|---|---------|--------|
-| 1 | **Business decisions are scattered** across individual AI chat sessions — impossible to trace | Team misalignment |
-| 2 | **No distinction** between human-explicit decisions and AI-autonomous decisions | Silent conflicts |
-| 3 | **Major changes lack context** — other members can't understand *why* something changed | Wasted investigation time |
-| 4 | **After pulling code**, no idea what business decisions others made | Blind collaboration |
-| 5 | **Accidental overrides** of another member's deliberate decisions | Lost work & trust |
-| 6 | **AI context window compaction** loses early-session decisions | Decision amnesia |
+**Monday morning.** Alice tells her AI: *"Remove the Z-shaped block from the game."* The AI does it. She commits and pushes.
 
-**Existing tools solve multi-agent orchestration.** TeamVibe solves **multi-human + multi-AI team collaboration** — the actual bottleneck in vibe coding teams.
+**Monday afternoon.** Bob pulls the code, sees some changes in the diff, but doesn't know *why* the Z block was removed. He tells his AI: *"Add back the Z block and remove L instead."* His AI happily does it.
 
-## How It Works
+**Alice is furious.** She spent an hour discussing with users before deciding to remove Z. Bob had no idea. His AI had no idea. Nobody had any idea.
 
-TeamVibe is a **pure Git-based, zero-infrastructure** decision version control system. It runs entirely through your IDE's hooks and rules — no servers, no databases, no SaaS.
+**This is the core problem:** In vibe coding teams, **business decisions live and die inside individual AI chat sessions.** They never become shared team knowledge.
+
+### It Gets Worse
+
+- **Your AI doesn't know your teammate's decisions.** When Bob asks his AI to change a feature, the AI can't warn him: *"Hey, Alice explicitly decided this last week."*
+- **You can't tell who decided what.** Was it the human who explicitly asked for this? Or did the AI just pick an approach on its own? The distinction matters — overriding a human's deliberate choice requires a conversation; overriding an AI's guess doesn't.
+- **Context window compaction loses decisions.** After a long coding session, your AI summarizes the conversation and forgets the specific decisions made early on.
+- **Pull requests come too late.** By the time you write a PR description, the vibe coding decisions are already made and pushed. The damage is done.
+
+## The Solution — What TeamVibe Does
+
+TeamVibe turns every `git commit` into a decision checkpoint. Not a changelog — a **decision record**: *what* was decided, *why*, *by whom*, and whether it was a human choice or an AI suggestion.
+
+These records travel with your code via Git. When your teammate pulls, their AI automatically learns about your decisions. When they try to override one, the system intervenes.
+
+**Here's what actually happens — step by step, using our Tetris demo:**
+
+### Step 1: Alice Commits → Decision Record Generated
+
+Alice tells her AI: *"Change all blocks to rounded corners."* The code changes. She runs `git commit`.
+
+**The commit is intercepted.** TeamVibe's hook asks the AI to generate a decision record:
+
+```json
+{
+  "decision_key": "block-rounded-corners",
+  "requirement": { "what": "Change all blocks to rounded corners", "why": "Modern visual style" },
+  "decision": { "type": "human", "motivation": "User explicitly requested rounded corners" }
+}
+```
+
+Alice reviews it, confirms, and the commit proceeds — now carrying both code *and* the decision record.
+
+### Step 2: Bob Pulls → Gets a Team Briefing
+
+Bob runs `git pull`. Instead of just seeing a diff, his AI tells him:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    TeamVibe Architecture             │
-│                                                     │
-│  ┌─── Rules Layer ───┐    ┌─── Hooks Layer ───┐     │
-│  │ Conflict detection │    │ Commit gate       │     │
-│  │ Draft maintenance  │    │ Push validation   │     │
-│  │ (AI-driven)        │    │ Pull briefing     │     │
-│  └────────────────────┘    │ Session init      │     │
-│                            │ Compact reminder  │     │
-│                            └───────────────────┘     │
-│                                                      │
-│  ┌─── Data Layer (.teamwork/) ──────────────────┐    │
-│  │ decisions/*.json  — versioned decision chain  │    │
-│  │ config.json       — team member registry      │    │
-│  │ drafts/           — real-time decision drafts  │   │
-│  └───────────────────────────────────────────────┘   │
-│                                                      │
-│              Distributed via Git — no server needed   │
-└─────────────────────────────────────────────────────┘
+## Team Changes Since Your Last Pull
+
+1. [Alice] 2026-03-16
+   Decision: Change all blocks to rounded corners
+   Type: 👤 Human decision
+   Motivation: User explicitly requested rounded corners
+
+⚠️ Alice explicitly decided this. Changing it requires talking to her first.
 ```
 
-### Core Concepts
+Now Bob's AI *knows* about Alice's decision — and will remember it for the rest of the session.
 
-**Decision Records, not Changelogs.** TeamVibe tracks *business decisions* (what, why, who decided), not code diffs. Each commit generates a structured JSON decision record reviewed by the author before committing.
+### Step 3: Bob Tries to Override → Conflict Detected
 
-**Decision Chain via `supersedes`.** Same business topic uses the same `decision_key`. New decisions reference old ones through `supersedes` — append-only, no merge conflicts.
+Bob tells his AI: *"Make the blocks square with sharp corners."*
 
-**Three Decision Types:**
+**Before writing any code**, the AI checks the decision records and responds:
 
-| Type | Meaning | Conflict behavior |
-|------|---------|-------------------|
-| `human` | Explicit human decision | **Must** discuss offline before overriding |
-| `human_ai` | Human-AI consensus | Warn, current user decides |
-| `ai` | AI autonomous decision | Mention briefly, proceed |
+> ⚠️ This conflicts with Alice's decision (2026-03-16): she explicitly chose rounded corners. 
+> Please talk to Alice offline first. Reply "confirmed, proceed" after you've discussed it.
 
-### Workflow
+Bob can't skip this. Even if he thinks his approach is better, the system requires human-to-human confirmation for overriding another person's explicit decision.
 
+### Step 4: After Discussion → Decision Chain Updated
+
+Bob talks to Alice. They agree on a compromise. Bob tells his AI "confirmed, proceed" and makes the change. The new decision record includes:
+
+```json
+{
+  "decision_key": "block-rounded-corners",
+  "supersedes": { "record_id": "alice's-record", "reason": "Discussed and agreed on compromise" },
+  "decision": { "type": "human", "motivation": "Team agreed on updated approach after discussion" }
+}
 ```
-During conversation:
-  AI maintains decision drafts in real-time (Rule-driven)
-         │
-         ▼
-git commit → Hook intercepts → AI generates decision record
-         → User reviews → Record saved → Commit proceeds
-         │
-         ▼
-git push  → Hook validates completeness → Push proceeds
-         │
-         ▼
-git pull  → Hook reads new decisions → Team briefing injected
-```
+
+The decision chain is preserved. Anyone can trace *why* this evolved.
+
+### Step 5: Push → Completeness Check
+
+Bob runs `git push`. TeamVibe validates:
+- ✅ Every commit with code changes has a corresponding decision record
+- ✅ Major changes include background context
+
+If anything is missing, the push is blocked until it's fixed.
+
+## Three Decision Types — Why They Matter
+
+Not all decisions are equal. TeamVibe distinguishes:
+
+| Type | Example | When someone conflicts |
+|------|---------|----------------------|
+| `human` 👤 | *"I want rounded corners"* — Alice explicitly chose this | **Must** talk to Alice before overriding. No exceptions. |
+| `human_ai` 👥 | *"The AI suggested streaming upload. I agreed."* — Consensus | Warn the user. They can decide whether to override. |
+| `ai` 🤖 | *The AI picked 500ms as the animation speed on its own* | Mention it briefly. Proceed without blocking. |
+
+This is the key insight: **a human's deliberate choice deserves more protection than an AI's arbitrary guess.**
+
+## Five Hooks, Five Jobs
+
+| When | Hook | What it does |
+|------|------|-------------|
+| 🟢 **Session starts** | `session-init` | Loads team decisions into AI context. Your AI starts every session knowing what the team decided. |
+| 🔴 **`git commit`** | `pre-commit-decision` | Intercepts the commit. AI generates a decision record from the conversation + diff. You review and confirm. |
+| 🔴 **`git push`** | `pre-push-validate` | Validates every commit has a decision record. Major changes must have background context. |
+| 🟡 **`git pull`** | `post-pull-review` | Reads new decision records. Formats a team briefing and injects it into your AI session. |
+| 🟡 **Context compacting** | `pre-compact-reminder` | Reminds you to save decision drafts before the AI's context window gets compacted. |
+
+Red = blocks the action. Yellow = injects information. Green = sets up context.
+
+## Real-Time Decision Drafts
+
+What if the AI's context window gets compacted mid-session, before you commit?
+
+TeamVibe's **Rules layer** solves this. The AI is instructed to maintain a draft file (`.teamwork/drafts/current.json`) throughout the conversation:
+
+- You make a decision → AI appends it to the draft
+- You and AI reach consensus → AI appends it
+- AI makes an autonomous design choice → AI appends it
+- Context about to compact → Hook reminds you to verify the draft
+
+When you finally commit, the draft is already mostly complete. The commit hook just refines it against the actual diff.
 
 ## Supported Platforms
 
-| Platform | Hooks Config | Rules |
-|----------|-------------|-------|
-| **Cursor** | `.cursor/hooks.json` | `.cursor/rules/teamwork-decisions.mdc` |
-| **Claude Code** | `.claude/settings.json` | `.claude/rules/teamwork-decisions.md` |
+Both Cursor and Claude Code are supported through a shared compatibility layer:
 
-Both platforms share the **same hook scripts** (`.cursor/hooks/*.py`) through a compatibility layer that auto-detects the runtime environment.
+| | Cursor | Claude Code |
+|---|--------|-------------|
+| Hooks config | `.cursor/hooks.json` | `.claude/settings.json` |
+| Rules | `.cursor/rules/*.mdc` | `.claude/rules/*.md` |
+| Hook scripts | `.cursor/hooks/*.py` (shared) | `.cursor/hooks/*.py` (shared) |
+| Auto-detection | `cursor_version` in input | Fallback |
+
+The **same Python scripts** run on both platforms. The `compat.py` layer handles input/output format differences automatically.
 
 ## Quick Start
 
-### 1. Add to your project
+**1.** Copy `.cursor/`, `.claude/`, and `.teamwork/` into your project root.
 
-Copy these directories into your project root:
-
-```
-.cursor/          # Cursor hooks & rules
-.claude/          # Claude Code hooks & rules
-.teamwork/        # Decision data (auto-created on first commit)
-```
-
-### 2. Configure your team
-
-Create `.teamwork/config.json`:
+**2.** Create `.teamwork/config.json` with your team:
 
 ```json
 {
   "version": "1.0",
   "team_members": [
-    { "name": "Alice", "role": "Product Manager", "email": "alice@team.com" },
-    { "name": "Bob", "role": "Frontend Engineer", "email": "bob@team.com" }
+    { "name": "Alice", "role": "PM", "email": "alice@team.com" },
+    { "name": "Bob", "role": "Developer", "email": "bob@team.com" }
   ]
 }
 ```
 
-### 3. Start coding
+**3.** Commit and push. Done — every team member who pulls gets the hooks automatically.
 
-That's it. The hooks and rules activate automatically:
-
-- **Start a session** → Team decisions injected as context
-- **Make changes** → AI detects conflicts with existing decisions
-- **Commit** → Decision record generated and reviewed
-- **Push** → Completeness validated
-- **Pull** → Team change briefing displayed
-
-## Demo: Tetris H5
-
-This repo includes a [Tetris H5 game](tetris.html) as a working demo. Two team members collaborate on the game using vibe coding:
+## Project Structure
 
 ```
-Alice: "Change all blocks to rounded corners"
-  → Decision record: block-rounded-corners (human)
-
-Bob: "Remove the Z-shaped block"
-  → Decision record: remove-z-block (human)
-
-Alice: "Restore Z block, remove L block instead"
-  → Conflict detected! Bob's human decision on Z block.
-  → Alice confirms offline discussion with Bob.
-  → New record supersedes Bob's, with resolution noted.
-```
-
-See `.teamwork/decisions/` for real decision records generated during development.
-
-## Decision Record Format
-
-```json
-{
-  "id": "2026-03-16T1430_alice_a1b2c3",
-  "author": { "name": "Alice", "role": "Product Manager" },
-  "timestamp": "2026-03-16T14:30:00Z",
-  "is_major_change": true,
-  "change_background": "User feedback on large CSV imports",
-  "entries": [
-    {
-      "decision_key": "csv-import-progress",
-      "status": "active",
-      "requirement": { "what": "Progress display for CSV import", "why": "Users have no visibility during large imports" },
-      "solution": { "approach": "Streaming parser + progress bar", "not_included": "No speed optimization" },
-      "decision": { "type": "human", "motivation": "PM explicitly required progress bar", "decided_by": "Alice" }
-    }
-  ]
-}
-```
-
-## File Structure
-
-```
-project-root/
+your-project/
 ├── .cursor/
 │   ├── hooks.json                    # Cursor hooks config
-│   ├── hooks/
-│   │   ├── compat.py                 # Cross-platform compatibility layer
-│   │   ├── session-init.py           # Session start: inject team context
-│   │   ├── pre-commit-decision.py    # Commit gate: generate decision record
-│   │   ├── pre-push-validate.py      # Push gate: validate completeness
-│   │   ├── post-pull-review.py       # Pull briefing: show team changes
-│   │   └── pre-compact-reminder.py   # Context compaction reminder
-│   └── rules/
-│       └── teamwork-decisions.mdc    # AI behavior rules (Cursor)
+│   └── hooks/
+│       ├── compat.py                 # Cross-platform compatibility
+│       ├── session-init.py           # → Session start context injection
+│       ├── pre-commit-decision.py    # → Commit gate
+│       ├── pre-push-validate.py      # → Push validation
+│       ├── post-pull-review.py       # → Pull team briefing
+│       └── pre-compact-reminder.py   # → Compaction reminder
 ├── .claude/
 │   ├── settings.json                 # Claude Code hooks config
 │   └── rules/
-│       └── teamwork-decisions.md     # AI behavior rules (Claude Code)
+│       └── teamwork-decisions.md     # AI behavior rules
 ├── .teamwork/
-│   ├── config.json                   # Team configuration
+│   ├── config.json                   # Team member registry
 │   ├── decisions/                    # Decision records (Git-tracked)
-│   └── drafts/                       # Work-in-progress drafts (gitignored)
+│   │   └── 2026-03-16T1430_alice_a1b2c3.json
+│   └── drafts/                       # Session drafts (gitignored)
+└── tetris.html                       # Demo: Tetris H5 game
 ```
 
 ## Why Not Just Use...
 
-| Approach | Limitation |
-|----------|-----------|
-| Git commit messages | No structure, no conflict detection, no decision attribution |
-| PR descriptions | Too late — decisions are already made during vibe coding |
-| Notion / Confluence | Disconnected from code, manual sync, not in AI context |
-| ADR (Architecture Decision Records) | Manual process, no automation, no real-time conflict detection |
-| Multi-agent frameworks (CrewAI, AutoGen...) | Solve agent orchestration, not human team coordination |
+| Tool | Why it doesn't work |
+|------|-------------------|
+| **Git commit messages** | No structure. No conflict detection. You'd need to read every commit message to find decisions. |
+| **Pull Request descriptions** | Too late. In vibe coding, you commit dozens of times. Decisions are made mid-session, not at PR time. |
+| **Notion / Confluence** | Completely disconnected from code. Your AI can't read your Notion page. Manual sync breaks instantly. |
+| **ADR (Architecture Decision Records)** | Manual-only. Nobody writes ADRs during a fast vibe coding session. No automation, no conflict detection. |
+| **CrewAI / AutoGen / LangGraph** | These orchestrate *multiple AI agents*. TeamVibe coordinates *multiple humans, each with their own AI*. Completely different problem. |
 
 ## Contributing
 
-Contributions welcome! Areas of interest:
+Contributions welcome! Interesting directions:
 
-- Support for additional AI coding tools (Windsurf, Copilot, etc.)
+- Support for more AI coding tools (Windsurf, Copilot, etc.)
 - Web dashboard for decision visualization
 - Decision analytics and team insights
-- Internationalization
+- CLI for non-IDE workflows
 
 ## License
 
@@ -225,138 +229,208 @@ MIT
 
 > 多 Agent 协作工具遍地都是。但多人 + 多 AI 的 Vibe Coding 团队协作工具？没有 —— 直到现在。
 
-## 解决什么问题
+## 问题 —— 一个你一定遇到过的场景
 
-当多个团队成员（产品经理、设计师、开发工程师）同时使用 AI 编程助手（Cursor、Claude Code 等）在同一项目上进行 vibe coding 时，混乱随之而来：
+Alice（产品经理）和 Bob（开发工程师）在一起做一个产品。Alice 用 Cursor，Bob 用 Claude Code。
 
-| # | 问题 | 影响 |
-|---|------|------|
-| 1 | **业务决策散落在各自的 AI 对话中**，无法追溯 | 团队认知不对齐 |
-| 2 | **无法区分**人工明确决策和 AI 自主决策 | 静默冲突 |
-| 3 | **大的需求变更缺乏背景说明**，其他成员无法理解变更动机 | 浪费排查时间 |
-| 4 | **Pull 代码后**不知道其他人做了什么业务变更 | 盲人协作 |
-| 5 | **无意中推翻**其他成员深思熟虑的决策 | 信任崩塌 |
-| 6 | **AI 上下文窗口折叠后**，对话早期的决策信息丢失 | 决策失忆 |
+**周一上午。** Alice 对 AI 说：*"把游戏里的 Z 形方块移除掉。"* AI 执行了。她提交并推送。
 
-**现有工具解决的是多 Agent 编排。** TeamVibe 解决的是**多人 + 多 AI 团队协作** —— 这才是 vibe coding 团队的真正瓶颈。
+**周一下午。** Bob 拉取代码，在 diff 里看到了一些变化，但不知道**为什么** Z 方块被移除了。他对 AI 说：*"把 Z 方块加回来，改为移除 L 方块。"* AI 愉快地执行了。
 
-## 工作原理
+**Alice 炸了。** 她跟用户讨论了一个小时才决定移除 Z。Bob 完全不知情。Bob 的 AI 也不知情。没有人知情。
 
-TeamVibe 是一套**纯 Git 分发、零基础设施**的决策版本管理系统。完全通过 IDE 的 Hooks 和 Rules 运行 —— 不需要服务器、数据库或 SaaS 服务。
+**这就是核心问题：在 vibe coding 团队中，业务决策只存在于各自的 AI 对话里。** 它们永远不会成为团队共享的知识。
 
-### 核心概念
+### 问题还不止于此
 
-**管理的不是代码变更，而是业务决策链路。** 每次提交时生成结构化的 JSON 决策记录，由作者审阅确认后才允许提交。
+- **你的 AI 不知道队友的决策。** Bob 让 AI 改一个功能时，AI 无法提醒他：*"Alice 上周明确决定了这件事。"*
+- **分不清谁做了什么决策。** 是人类明确要求的？还是 AI 自己挑的方案？这个区分很重要 —— 推翻人的深思熟虑需要沟通，推翻 AI 的随机选择不需要。
+- **上下文窗口折叠后决策丢失。** 长时间编码后，AI 把对话压缩了，早期的决策细节消失了。
+- **PR 描述来得太晚。** 等你写 PR 描述时，vibe coding 的决策早就做完并推送了。木已成舟。
 
-**决策版本链（`supersedes` 机制）：** 同一业务话题使用相同的 `decision_key`。新决策通过 `supersedes` 引用旧决策 —— 纯追加式，不会产生 Git 合并冲突。
+## 解决方案 —— TeamVibe 做了什么
 
-**三种决策类型：**
+TeamVibe 把每次 `git commit` 变成一个决策检查点。不是 changelog —— 是**决策记录**：决定了*什么*、*为什么*、*谁决定的*、是人的选择还是 AI 的建议。
 
-| 类型 | 含义 | 冲突处理 |
-|------|------|---------|
-| `human` | 人工明确决策 | **必须**线下沟通后才能推翻 |
-| `human_ai` | 人 + AI 共同达成 | 提醒，当前用户自行判断 |
-| `ai` | AI 自主决策 | 简要提及，直接执行 |
+这些记录通过 Git 跟随代码一起分发。队友拉取代码时，他们的 AI 自动了解你的决策。当他们试图推翻某个决策时，系统会介入。
 
-### 工作流
+**以下是实际发生的过程 —— 用我们的俄罗斯方块演示项目逐步说明：**
+
+### 第 1 步：Alice 提交 → 生成决策记录
+
+Alice 对 AI 说：*"将方块全部改为圆角。"* 代码改好了。她执行 `git commit`。
+
+**提交被拦截。** TeamVibe 的 hook 让 AI 从对话内容和代码差异中生成决策记录：
+
+```json
+{
+  "decision_key": "block-rounded-corners",
+  "requirement": { "what": "将所有方块改为圆角样式", "why": "提升视觉美观度" },
+  "decision": { "type": "human", "motivation": "用户明确要求圆角" }
+}
+```
+
+Alice 审阅确认后，提交继续 —— 现在这个 commit 同时携带了代码**和**决策记录。
+
+### 第 2 步：Bob 拉取 → 收到团队变更通报
+
+Bob 执行 `git pull`。他的 AI 不只是展示 diff，而是告诉他：
 
 ```
-对话过程中：
-  AI 实时维护决策草稿（Rule 驱动）
-         │
-         ▼
-git commit → Hook 拦截 → AI 生成决策记录
-         → 用户审阅 → 记录保存 → 提交放行
-         │
-         ▼
-git push  → Hook 校验完整性 → 推送放行
-         │
-         ▼
-git pull  → Hook 读取新决策 → 团队变更通报注入对话
+## 团队变更通报（自你上次 pull 以来）
+
+1. [Alice] 2026-03-16
+   决策：将所有方块改为圆角样式
+   类型：👤 人工明确决策
+   动机：用户明确要求圆角
+
+⚠️ Alice 明确决定了这件事。修改需要先与她沟通。
 ```
+
+现在 Bob 的 AI **知道了** Alice 的决策 —— 并且在整个会话中都会记住。
+
+### 第 3 步：Bob 试图推翻 → 冲突检测
+
+Bob 对 AI 说：*"把方块改回直角。"*
+
+**在写任何代码之前**，AI 检查决策记录并回应：
+
+> ⚠️ 这与 Alice 的决策冲突（2026-03-16）：她明确选择了圆角样式。
+> 请先与 Alice 线下沟通确认。沟通后回复"已沟通，可以继续"。
+
+Bob 无法跳过这一步。即使他认为自己的方案更好，系统也要求人与人之间的确认才能推翻另一个人的明确决策。
+
+### 第 4 步：沟通后 → 决策链更新
+
+Bob 跟 Alice 聊了。他们达成共识。Bob 回复"已沟通，可以继续"，然后修改代码。新的决策记录包含：
+
+```json
+{
+  "decision_key": "block-rounded-corners",
+  "supersedes": { "record_id": "alice的记录", "reason": "沟通后达成共识" },
+  "decision": { "type": "human", "motivation": "团队讨论后同意更新方案" }
+}
+```
+
+决策链被完整保留。任何人都可以追溯这个决策**为什么**演变。
+
+### 第 5 步：推送 → 完整性校验
+
+Bob 执行 `git push`。TeamVibe 校验：
+- ✅ 每个有代码变更的 commit 都有对应的决策记录
+- ✅ 重大变更包含背景说明
+
+任何缺失都会阻止推送，直到补充完整。
+
+## 三种决策类型 —— 为什么区分很重要
+
+不是所有决策都一样重要。TeamVibe 做了区分：
+
+| 类型 | 例子 | 有人冲突时怎么办 |
+|------|------|---------------|
+| `human` 👤 | *"我要圆角"* —— Alice 明确选择的 | **必须**跟 Alice 沟通后才能推翻。没有例外。 |
+| `human_ai` 👥 | *"AI 建议用流式上传，我同意了"* —— 共识 | 提醒用户。由用户决定是否推翻。 |
+| `ai` 🤖 | *AI 自己选了 500ms 作为动画速度* | 简要提及。不阻拦。 |
+
+这是核心洞察：**人类的深思熟虑，比 AI 的随机选择，值得更多保护。**
+
+## 五个 Hook，五个职责
+
+| 触发时机 | Hook | 做什么 |
+|---------|------|--------|
+| 🟢 **会话启动** | `session-init` | 将团队决策加载到 AI 上下文中。AI 从第一句话就知道团队做了什么决策。 |
+| 🔴 **`git commit`** | `pre-commit-decision` | 拦截提交。AI 从对话 + diff 中生成决策记录。你审阅确认。 |
+| 🔴 **`git push`** | `pre-push-validate` | 校验每个 commit 是否有决策记录。重大变更必须有背景说明。 |
+| 🟡 **`git pull`** | `post-pull-review` | 读取新增的决策记录。格式化为团队变更通报注入 AI 会话。 |
+| 🟡 **上下文折叠** | `pre-compact-reminder` | 提醒你在 AI 上下文窗口压缩前确认决策草稿。 |
+
+🔴 = 阻拦操作。🟡 = 注入信息。🟢 = 建立上下文。
+
+## 实时决策草稿
+
+如果 commit 前 AI 的上下文窗口就被压缩了怎么办？
+
+TeamVibe 的 **Rules 层**解决了这个问题。AI 被指示在整个对话过程中维护一份草稿文件（`.teamwork/drafts/current.json`）：
+
+- 你做了一个决策 → AI 立即追加到草稿
+- 你和 AI 达成共识 → AI 立即追加
+- AI 自主做了设计选择 → AI 立即追加
+- 上下文即将压缩 → Hook 提醒你检查草稿
+
+当你最终提交时，草稿已经基本完整。commit hook 只需要根据实际 diff 做增补修正。
 
 ## 支持的平台
 
-| 平台 | Hooks 配置 | Rules |
-|------|-----------|-------|
-| **Cursor** | `.cursor/hooks.json` | `.cursor/rules/teamwork-decisions.mdc` |
-| **Claude Code** | `.claude/settings.json` | `.claude/rules/teamwork-decisions.md` |
+通过共享的兼容层同时支持 Cursor 和 Claude Code：
 
-两个平台共享**同一套 hook 脚本**（`.cursor/hooks/*.py`），通过兼容层自动检测运行环境。
+| | Cursor | Claude Code |
+|---|--------|-------------|
+| Hooks 配置 | `.cursor/hooks.json` | `.claude/settings.json` |
+| Rules | `.cursor/rules/*.mdc` | `.claude/rules/*.md` |
+| Hook 脚本 | `.cursor/hooks/*.py`（共享） | `.cursor/hooks/*.py`（共享） |
+
+**同一套 Python 脚本**在两个平台上运行。`compat.py` 兼容层自动处理输入输出格式差异。
 
 ## 快速开始
 
-### 1. 添加到你的项目
+**1.** 将 `.cursor/`、`.claude/`、`.teamwork/` 复制到你的项目根目录。
 
-将以下目录复制到项目根目录：
-
-```
-.cursor/          # Cursor hooks 和 rules
-.claude/          # Claude Code hooks 和 rules
-.teamwork/        # 决策数据（首次 commit 时自动创建）
-```
-
-### 2. 配置团队
-
-创建 `.teamwork/config.json`：
+**2.** 创建 `.teamwork/config.json` 配置团队成员：
 
 ```json
 {
   "version": "1.0",
   "team_members": [
     { "name": "Alice", "role": "产品经理", "email": "alice@team.com" },
-    { "name": "Bob", "role": "前端工程师", "email": "bob@team.com" }
+    { "name": "Bob", "role": "开发工程师", "email": "bob@team.com" }
   ]
 }
 ```
 
-### 3. 开始编码
+**3.** 提交并推送。搞定 —— 团队成员拉取代码后自动获得所有 hooks。
 
-搞定了。Hooks 和 Rules 自动生效：
-
-- **启动会话** → 团队决策上下文自动注入
-- **修改代码** → AI 自动检测与现有决策的冲突
-- **提交** → 生成决策记录并审阅
-- **推送** → 校验决策记录完整性
-- **拉取** → 显示团队变更通报
-
-## 演示：俄罗斯方块 H5
-
-本仓库包含一个[俄罗斯方块 H5 游戏](tetris.html)作为实际协作演示。两位团队成员通过 vibe coding 协作开发这个游戏：
+## 项目结构
 
 ```
-蒋延平："将方块全部改为圆角"
-  → 决策记录：block-rounded-corners（human 类型）
-
-amybriggs5010："移除 Z 形方块"
-  → 决策记录：remove-z-block（human 类型）
-
-蒋延平："恢复 Z 方块，去除 L 方块"
-  → 检测到冲突！amybriggs5010 对 Z 方块有 human 类型决策。
-  → 蒋延平确认已线下沟通。
-  → 新记录 supersedes 旧记录，附带沟通结论。
+your-project/
+├── .cursor/
+│   ├── hooks.json                    # Cursor hooks 配置
+│   └── hooks/
+│       ├── compat.py                 # 跨平台兼容层
+│       ├── session-init.py           # → 会话启动上下文注入
+│       ├── pre-commit-decision.py    # → 提交守门
+│       ├── pre-push-validate.py      # → 推送校验
+│       ├── post-pull-review.py       # → 拉取后团队通报
+│       └── pre-compact-reminder.py   # → 上下文折叠提醒
+├── .claude/
+│   ├── settings.json                 # Claude Code hooks 配置
+│   └── rules/
+│       └── teamwork-decisions.md     # AI 行为规则
+├── .teamwork/
+│   ├── config.json                   # 团队成员配置
+│   ├── decisions/                    # 决策记录（Git 跟踪）
+│   └── drafts/                       # 会话草稿（gitignored）
+└── tetris.html                       # 演示：俄罗斯方块 H5 游戏
 ```
-
-查看 `.teamwork/decisions/` 目录可以看到开发过程中生成的真实决策记录。
 
 ## 为什么不用...
 
-| 方案 | 局限性 |
-|------|--------|
-| Git commit message | 无结构、无冲突检测、无决策归属 |
-| PR 描述 | 太晚了 —— vibe coding 时决策已经做完了 |
-| Notion / Confluence | 与代码脱节，手动同步，不在 AI 上下文中 |
-| ADR（架构决策记录） | 纯手动流程，无自动化，无实时冲突检测 |
-| 多 Agent 框架（CrewAI、AutoGen...） | 解决 Agent 编排，不解决人类团队协调 |
+| 工具 | 为什么不够 |
+|------|----------|
+| **Git commit message** | 没有结构。没有冲突检测。你得逐条阅读每个 commit message 才能找到决策。 |
+| **PR 描述** | 太晚了。在 vibe coding 中，你会提交几十次。决策在会话中途做出，不是在写 PR 时。 |
+| **Notion / Confluence** | 与代码完全脱节。你的 AI 读不了你的 Notion 页面。手动同步一开始就会失效。 |
+| **ADR（架构决策记录）** | 纯手动。在快节奏的 vibe coding 会话中没人会写 ADR。无自动化，无冲突检测。 |
+| **CrewAI / AutoGen / LangGraph** | 这些工具编排*多个 AI Agent*。TeamVibe 协调*多个人类，每人各带一个 AI*。完全不同的问题。 |
 
 ## 参与贡献
 
-欢迎贡献！感兴趣的方向：
+欢迎贡献！有意思的方向：
 
 - 支持更多 AI 编程工具（Windsurf、Copilot 等）
 - 决策可视化 Web 面板
 - 决策分析与团队洞察
-- 国际化支持
+- 非 IDE 场景的 CLI 工具
 
 ## 许可证
 
