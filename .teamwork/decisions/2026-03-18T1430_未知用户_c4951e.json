@@ -1,0 +1,32 @@
+{
+  "id": "2026-03-18T1430_未知用户_c4951e",
+  "timestamp": "2026-03-18T14:30:00+08:00",
+  "author": {
+    "name": "未知用户",
+    "role": "",
+    "email": ""
+  },
+  "conversation_id": "claude-code-session",
+  "is_major_change": false,
+  "change_background": "",
+  "noise_excluded": "",
+  "entries": [
+    {
+      "decision_key": "claude-code-hooks-fix",
+      "status": "active",
+      "requirement": {
+        "what": "修复 Claude Code 执行 hooks 时找不到脚本文件的问题",
+        "why": "Claude Code 和 Cursor 的工作目录处理机制不同，导致相对路径失效"
+      },
+      "solution": {
+        "approach": "在 .claude/settings.json 的所有 hook 命令前添加 'cd \"$CLAUDE_PROJECT_DIR\" &&'，确保脚本执行前切换到项目根目录；新增 .cursor/hooks/README.md 说明双平台兼容设计原理",
+        "not_included": "未修改 .cursor/settings.json（Cursor 自动在项目根目录执行，无需改动）；未改变 hook 脚本本身的逻辑"
+      },
+      "decision": {
+        "type": "human_ai",
+        "motivation": "用户报告在其他项目中使用 Claude Code 时出现 hook 脚本找不到的错误，需要修复以实现真正的双平台兼容。通过显式 cd 到项目根目录，确保两个平台都能正确找到并执行 .cursor/hooks/ 下的脚本",
+        "decided_by": "未知用户 + Claude"
+      }
+    }
+  ]
+}
