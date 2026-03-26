@@ -125,3 +125,12 @@ supersedes **必须写在 entry 级别**，格式如下：
 - 决策记录：`.teamwork/decisions/*.json`
 - 决策草稿：`.teamwork/drafts/current.json`（已加入 .gitignore，不提交）
 - 团队配置：`.teamwork/config.json`
+
+## 五、新成员注册
+
+当会话上下文或 hook 提示当前用户是 `unregistered` 或 `unknown` 时：
+1. 询问用户希望使用的显示名和团队角色
+2. 读取 `.teamwork/config.json`
+3. 以 fresh read -> append -> write 的方式写入 `team_members`
+4. 明确告知用户：这次配置变更提交时应使用 `[skip decision]` 标记
+5. 完成注册后，再继续正常开发流程
