@@ -1,5 +1,11 @@
 {
   "version": "1.0",
-  "team_members": [],
+  "team_members": [
+    {
+      "name": "disrush",
+      "email": "disrush@users.noreply.github.com",
+      "role": ""
+    }
+  ],
   "major_change_keywords": []
 }
