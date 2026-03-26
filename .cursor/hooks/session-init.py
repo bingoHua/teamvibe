@@ -6,60 +6,10 @@ Hook: 会话启动时注入团队决策上下文。
 
 import json
 import os
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from compat import HookIO
-
-
-def resolve_current_user(hook, config, project_root):
-    members = config.get("team_members", [])
-    email_map = {m.get("email", "").lower(): m for m in members if m.get("email")}
-
-    user_email = hook.get_user_email()
-    if user_email and user_email.lower() in email_map:
-        m = email_map[user_email.lower()]
-        return {"name": m["name"], "role": m.get("role", ""), "email": user_email, "source": "account"}
-
-    try:
-        git_email = subprocess.run(
-            ["git", "config", "user.email"],
-            cwd=project_root, capture_output=True, text=True, timeout=5
-        ).stdout.strip()
-        if git_email and git_email.lower() in email_map:
-            m = email_map[git_email.lower()]
-            return {"name": m["name"], "role": m.get("role", ""), "email": git_email, "source": "git_email"}
-    except Exception:
-        pass
-
-    try:
-        git_name = subprocess.run(
-            ["git", "config", "user.name"],
-            cwd=project_root, capture_output=True, text=True, timeout=5
-        ).stdout.strip()
-        name_map = {m["name"]: m for m in members}
-        if git_name and git_name in name_map:
-            m = name_map[git_name]
-            return {"name": m["name"], "role": m.get("role", ""), "email": "", "source": "git_name"}
-        if git_name:
-            return {"name": git_name, "role": "", "email": "", "source": "git_name_unmatched"}
-    except Exception:
-        pass
-
-    if user_email:
-        return {"name": user_email.split("@")[0], "role": "", "email": user_email, "source": "email_fallback"}
-
-    return {"name": "未知用户", "role": "", "email": "", "source": "unknown"}
-
-
-def load_config(project_root):
-    config_path = os.path.join(project_root, ".teamwork", "config.json")
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+from compat import HookIO, load_config, resolve_current_user
 
 
 def load_decisions(project_root):
@@ -114,13 +64,35 @@ def get_active_decisions(records):
     return active
 
 
+def format_registration_notice(current_user):
+    if current_user.get("source") == "unregistered":
+        return (
+            "## 新成员注册\n\n"
+            "**你还未注册到当前项目团队配置中。**\n"
+            f"检测到 git name：{current_user.get('name') or 'not set'}\n"
+            f"检测到 email：{current_user.get('email') or 'not set'}\n"
+            "请告诉我你希望使用的显示名和团队角色，我会帮你写入 .teamwork/config.json。\n"
+        )
+    if current_user.get("source") == "unknown":
+        return (
+            "## 新成员注册\n\n"
+            "**未检测到你的 git 身份信息，也未在团队配置中找到你。**\n"
+            "请告诉我你希望使用的显示名和团队角色，我会帮你写入 .teamwork/config.json。\n"
+        )
+    return ""
+
+
 def format_context(active, config, current_user):
     lines = ["## 团队决策上下文\n"]
 
     lines.append(f"**当前用户：{current_user['name']}（{current_user.get('role') or '角色未配置'}）**\n")
 
-    members = {m["name"]: m["role"] for m in config.get("team_members", [])}
-    lines.append(f"团队成员：{', '.join(f'{n}({r})' for n, r in members.items()) if members else '未配置'}\n")
+    members = {m["name"]: m.get("role", "") for m in config.get("team_members", [])}
+    if members:
+        member_list = ", ".join(f"{n}({r or '未配置'})" for n, r in members.items())
+    else:
+        member_list = "未配置"
+    lines.append(f"团队成员：{member_list}\n")
 
     if not active:
         return "\n".join(lines)
@@ -151,11 +123,11 @@ def main():
     hook = HookIO()
     project_root = hook.get_project_root()
 
-    config = load_config(project_root)
-    current_user = resolve_current_user(hook, config, project_root)
+    current_user, config = resolve_current_user(hook, project_root)
     records = load_decisions(project_root)
     active = get_active_decisions(records[:10])
-    context = format_context(active, config, current_user)
+    notice = format_registration_notice(current_user)
+    context = notice + format_context(active, config, current_user)
 
     env = {"TEAMWORK_DIR": ".teamwork", "TEAMWORK_USER": current_user["name"]}
     hook.context(text=context, env=env)
